@@ -15,7 +15,7 @@ app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "Nabta API V1");
     c.RoutePrefix = string.Empty;
-    c.ConfigObject.AdditionalItems["syntaxHighlight"] = false; // لتجنب أي مشاكل تحميل
+    c.ConfigObject.AdditionalItems["syntaxHighlight"] = false; 
 });
 
 app.UseHttpsRedirection();
