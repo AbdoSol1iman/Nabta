@@ -4,12 +4,18 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 
+builder.Services.AddMediatR(config =>
+    config.RegisterServicesFromAssembly(
+        typeof(Nabta.Application.Featuers.Authentication.LogIn.LogInCommand).Assembly));
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.AddInfrastructure(builder.Configuration);
 
 var app = builder.Build();
+
+app.UseSwagger();
 
 app.UseSwaggerUI(c =>
 {
