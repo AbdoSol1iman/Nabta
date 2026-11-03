@@ -13,6 +13,7 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: production
 
     steps:
       - name: Checkout repository
@@ -30,6 +31,7 @@ jobs:
         run: dotnet publish ./Nabta/Nabta.API.csproj -c Release -o ./publish --no-restore
 
       - name: Configure SSH
+        if: ${{ secrets.EC2_HOST != '' && secrets.EC2_USER != '' && secrets.EC2_SSH_KEY != '' }}
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
@@ -40,6 +42,7 @@ jobs:
           ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
 
       - name: Upload files to AWS
+        if: ${{ secrets.EC2_HOST != '' && secrets.EC2_USER != '' && secrets.EC2_SSH_KEY != '' }}
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
@@ -51,6 +54,7 @@ jobs:
             "$EC2_USER@$EC2_HOST:/home/ubuntu/nabta-deploy/"
 
       - name: Restart API
+        if: ${{ secrets.EC2_HOST != '' && secrets.EC2_USER != '' && secrets.EC2_SSH_KEY != '' }}
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
@@ -64,3 +68,8 @@ jobs:
             sudo systemctl is-active --quiet nabta-api.service
             echo "Nabta API deployed successfully"
           '
+
+      - name: Skip deployment when secrets are missing
+        if: ${{ secrets.EC2_HOST == '' || secrets.EC2_USER == '' || secrets.EC2_SSH_KEY == '' }}
+        run: |
+          echo "Skipping deployment because required secrets are missing: EC2_HOST, EC2_USER, and/or EC2_SSH_KEY."
