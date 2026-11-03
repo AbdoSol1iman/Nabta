@@ -31,6 +31,7 @@ x86/
 *.snupkg
 **/packages/*
 !**/packages/build/
+node_modules/
 
 # Logs
 *.log
@@ -47,6 +48,7 @@ Desktop.ini
 
 # Environment variables and secrets
 .env
+Nabta/.env
 .env.*
 !.env.example
 secrets.json

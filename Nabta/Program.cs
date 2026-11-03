@@ -1,8 +1,20 @@
 
 using Infrastructure;
+using Microsoft.AspNetCore.Identity;
 using OtpNet;
 using QRCoder;
+using Nabta.Infrastructure.identity;
 
+var localEnvironmentFiles = new[]
+{
+    Path.Combine(Directory.GetCurrentDirectory(), ".env.local"),
+    Path.Combine(Directory.GetParent(Directory.GetCurrentDirectory())?.FullName ?? string.Empty, ".env.local")
+};
+var localEnvironmentFile = localEnvironmentFiles.FirstOrDefault(File.Exists);
+if (localEnvironmentFile is not null)
+{
+    DotNetEnv.Env.Load(localEnvironmentFile);
+}
 var builder = WebApplication.CreateBuilder(args);
 
 // Register services BEFORE Build
@@ -18,6 +30,15 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddInfrastructure(builder.Configuration);
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+    if (!await roleManager.RoleExistsAsync("user"))
+    {
+        await roleManager.CreateAsync(new IdentityRole("user"));
+    }
+}
 
 // Temporary OTP implementation for testing only
 byte[] secretKey = KeyGeneration.GenerateRandomKey();

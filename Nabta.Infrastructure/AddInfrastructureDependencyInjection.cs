@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using Npgsql;
 using Nabta.Infrastructure.Data;
 using Nabta.Infrastructure.identity;
 using System.Text;
@@ -22,9 +23,11 @@ namespace Infrastructure
             IConfiguration configuration)
         {
             // Database
+            var databaseUrl = configuration["DATABASE_URL"]
+                ?? configuration.GetConnectionString("DefaultConnection");
+
             services.AddDbContext<AppDbContext>(options =>
-                options.UseSqlServer(
-                    configuration.GetConnectionString("DefaultConnection")));
+                options.UseNpgsql(ToNpgsqlConnectionString(databaseUrl)));
 
             // JWT Options
             services.Configure<JwtOptions>(
@@ -73,6 +76,36 @@ namespace Infrastructure
             services.AddScoped<IAuthService, AuthService>();
 
             return services;
+        }
+
+        private static string ToNpgsqlConnectionString(string? databaseUrl)
+        {
+            if (string.IsNullOrWhiteSpace(databaseUrl)
+                || !databaseUrl.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
+            {
+                return databaseUrl ?? throw new InvalidOperationException(
+                    "DATABASE_URL or ConnectionStrings:DefaultConnection must be configured.");
+            }
+
+            var uri = new Uri(databaseUrl);
+            var credentials = uri.UserInfo.Split(':', 2);
+
+            if (credentials.Length != 2)
+            {
+                throw new InvalidOperationException("DATABASE_URL must include a username and password.");
+            }
+
+            var connectionString = new NpgsqlConnectionStringBuilder
+            {
+                Host = uri.Host,
+                Port = uri.IsDefaultPort ? 5432 : uri.Port,
+                Database = uri.AbsolutePath.Trim('/'),
+                Username = Uri.UnescapeDataString(credentials[0]),
+                Password = Uri.UnescapeDataString(credentials[1]),
+                SslMode = SslMode.Require
+            };
+
+            return connectionString.ConnectionString;
         }
     }
 }
