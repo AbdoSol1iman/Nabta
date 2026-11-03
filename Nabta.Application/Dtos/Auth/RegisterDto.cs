@@ -16,7 +16,7 @@ namespace Nabta.Application.Dtos.Auth
         public string PhoneNumber { get; set; }
 
         [EmailAddress]
-        public string? Email { get; set; }=string.Empty;
+        public string? Email { get; set; } = null;
 
         [Required]
         [MinLength(8)]

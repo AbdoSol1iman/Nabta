@@ -25,11 +25,9 @@ public class AuthController : ControllerBase
 
     // POST: api/auth/register
     [HttpPost("register")]
-    public async Task<IActionResult> Register(
-        [FromBody] RegisterDto dto)
+    public async Task<IActionResult> Register( [FromBody] RegisterDto dto)
     {
-        var result = await _mediator.Send(
-            new RegisterCommand(dto));
+        var result = await _mediator.Send( new RegisterCommand(dto));
 
         if (!result.IsAuthenticated)
         {

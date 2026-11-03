@@ -107,9 +107,7 @@ namespace Nabta.Infrastructure.Implementations
                 UserName = phoneNumber,
                 PhoneNumber = phoneNumber,
 
-                Email = string.IsNullOrWhiteSpace(dto.Email)
-                    ? null
-                    : dto.Email.Trim()
+                Email = string.IsNullOrWhiteSpace(dto.Email) ? null : dto.Email.Trim()
             };
 
             // 5. Create user and hash password
@@ -140,10 +138,10 @@ namespace Nabta.Infrastructure.Implementations
                 };
             }
 
-            if (!string.IsNullOrWhiteSpace(newAppUser.Email))
-            {
-                await SendEmailConfirmationAsync(newAppUser);
-            }
+            //if (!string.IsNullOrWhiteSpace(newAppUser.Email))
+            //{
+            //    await SendEmailConfirmationAsync(newAppUser);
+            //}
 
             // 7. Generate JWT
             var token = await GenerateToken(newAppUser);
