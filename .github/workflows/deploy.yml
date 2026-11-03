@@ -14,6 +14,10 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: production
+    env:
+      EC2_HOST: ${{ secrets.EC2_HOST }}
+      EC2_USER: ${{ secrets.EC2_USER }}
+      EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
 
     steps:
       - name: Checkout repository
@@ -31,10 +35,10 @@ jobs:
         run: dotnet publish ./Nabta/Nabta.API.csproj -c Release -o ./publish --no-restore
 
       - name: Configure SSH
-        if: ${{ secrets.EC2_HOST != '' && secrets.EC2_USER != '' && secrets.EC2_SSH_KEY != '' }}
+        if: ${{ env.EC2_HOST != '' && env.EC2_USER != '' && env.EC2_SSH_KEY != '' }}
         env:
-          EC2_HOST: ${{ secrets.EC2_HOST }}
-          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_HOST: ${{ env.EC2_HOST }}
+          EC2_SSH_KEY: ${{ env.EC2_SSH_KEY }}
         run: |
           mkdir -p ~/.ssh
           printf '%s\n' "$EC2_SSH_KEY" > ~/.ssh/deploy_key
@@ -42,10 +46,10 @@ jobs:
           ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
 
       - name: Upload files to AWS
-        if: ${{ secrets.EC2_HOST != '' && secrets.EC2_USER != '' && secrets.EC2_SSH_KEY != '' }}
+        if: ${{ env.EC2_HOST != '' && env.EC2_USER != '' && env.EC2_SSH_KEY != '' }}
         env:
-          EC2_HOST: ${{ secrets.EC2_HOST }}
-          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_HOST: ${{ env.EC2_HOST }}
+          EC2_USER: ${{ env.EC2_USER }}
         run: |
           ssh -i ~/.ssh/deploy_key "$EC2_USER@$EC2_HOST" \
             "mkdir -p /home/ubuntu/nabta-deploy"
@@ -54,10 +58,10 @@ jobs:
             "$EC2_USER@$EC2_HOST:/home/ubuntu/nabta-deploy/"
 
       - name: Restart API
-        if: ${{ secrets.EC2_HOST != '' && secrets.EC2_USER != '' && secrets.EC2_SSH_KEY != '' }}
+        if: ${{ env.EC2_HOST != '' && env.EC2_USER != '' && env.EC2_SSH_KEY != '' }}
         env:
-          EC2_HOST: ${{ secrets.EC2_HOST }}
-          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_HOST: ${{ env.EC2_HOST }}
+          EC2_USER: ${{ env.EC2_USER }}
         run: |
           ssh -i ~/.ssh/deploy_key "$EC2_USER@$EC2_HOST" '
             set -e
@@ -70,6 +74,6 @@ jobs:
           '
 
       - name: Skip deployment when secrets are missing
-        if: ${{ secrets.EC2_HOST == '' || secrets.EC2_USER == '' || secrets.EC2_SSH_KEY == '' }}
+        if: ${{ env.EC2_HOST == '' || env.EC2_USER == '' || env.EC2_SSH_KEY == '' }}
         run: |
           echo "Skipping deployment because required secrets are missing: EC2_HOST, EC2_USER, and/or EC2_SSH_KEY."
