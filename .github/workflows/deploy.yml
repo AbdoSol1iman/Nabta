@@ -1,0 +1,75 @@
+
+name: Deploy Nabta API to AWS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore ./Nabta/Nabta.API.csproj
+
+      - name: Publish API
+        run: dotnet publish ./Nabta/Nabta.API.csproj -c Release -o ./publish --no-restore
+
+      - name: Configure SSH
+        if: ${{ secrets.EC2_HOST != '' && secrets.EC2_USER != '' && secrets.EC2_SSH_KEY != '' }}
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$EC2_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
+
+      - name: Upload files to AWS
+        if: ${{ secrets.EC2_HOST != '' && secrets.EC2_USER != '' && secrets.EC2_SSH_KEY != '' }}
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+        run: |
+          ssh -i ~/.ssh/deploy_key "$EC2_USER@$EC2_HOST" \
+            "mkdir -p /home/ubuntu/nabta-deploy"
+
+          scp -i ~/.ssh/deploy_key -r ./publish/. \
+            "$EC2_USER@$EC2_HOST:/home/ubuntu/nabta-deploy/"
+
+      - name: Restart API
+        if: ${{ secrets.EC2_HOST != '' && secrets.EC2_USER != '' && secrets.EC2_SSH_KEY != '' }}
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+        run: |
+          ssh -i ~/.ssh/deploy_key "$EC2_USER@$EC2_HOST" '
+            set -e
+            sudo systemctl stop nabta-api.service
+            cp -a /home/ubuntu/nabta-deploy/. /home/ubuntu/
+            sudo systemctl start nabta-api.service
+            sleep 3
+            sudo systemctl is-active --quiet nabta-api.service
+            echo "Nabta API deployed successfully"
+          '
+
+      - name: Skip deployment when secrets are missing
+        if: ${{ secrets.EC2_HOST == '' || secrets.EC2_USER == '' || secrets.EC2_SSH_KEY == '' }}
+        run: |
+          echo "Skipping deployment because required secrets are missing: EC2_HOST, EC2_USER, and/or EC2_SSH_KEY."
