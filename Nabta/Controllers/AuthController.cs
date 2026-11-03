@@ -5,7 +5,10 @@ using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 using Nabta.Application.Dtos.Auth;
 using Nabta.Application.Featuers;
+using Nabta.Application.Featuers.Authentication.ConfirmEmail;
+using Nabta.Application.Featuers.Authentication.ForgetPassword;
 using Nabta.Application.Featuers.Authentication.LogIn;
+using Nabta.Application.Featuers.Authentication.ResetPassword;
 
 namespace API.Controllers;
 
@@ -147,9 +150,37 @@ public class AuthController : ControllerBase
         return NoContent();
     }
 
-    private void SetRefreshTokenCookie(
-        string? token,
-        DateTime? expiresOn)
+
+    [HttpPost("confirm-email")]
+    public async Task<IActionResult> ConfirmEmail(ConfirmEmailCommand command)
+    {
+        var result = await _mediator.Send(command);
+
+        if (!result)
+            return BadRequest("Invalid confirmation request.");
+
+        return Ok("Email confirmed successfully.");
+    }
+
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgetPassword(ForgetPasswordCommand command)
+    {
+        await _mediator.Send(command);
+        return Ok(new{ Message = "If your email is registered, you will receive a reset link."});
+    }
+
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword(ResetPasswordCommand command)
+    {
+        var result = await _mediator.Send(command);
+
+        if (!result)
+            return BadRequest("Invalid reset request.");
+
+        return Ok("Password reset successfully.");
+    }
+
+    private void SetRefreshTokenCookie(string? token, DateTime? expiresOn)
     {
         if (string.IsNullOrWhiteSpace(token) || expiresOn is null)
             return;

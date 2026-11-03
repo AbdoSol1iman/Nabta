@@ -1,6 +1,6 @@
 ﻿
 using MediatR;
-using Nabta.Application.Featuers.Services;
+using Nabta.Application.Interfaces.Services;
 
 namespace Nabta.Application.Featuers.Authentication.RefreshToken
 {

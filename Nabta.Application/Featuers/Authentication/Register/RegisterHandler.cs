@@ -1,6 +1,6 @@
 ﻿using MediatR;
 using Nabta.Application;
-using Nabta.Application.Featuers.Services;
+using Nabta.Application.Interfaces.Services;
 using System;
 using System.Collections.Generic;
 using System.Text;

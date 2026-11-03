@@ -1,5 +1,4 @@
-﻿using Azure.Core;
-using Infrastructure.Helpers;
+﻿using Infrastructure.Helpers;
 using Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -7,8 +6,8 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Nabta.Application;
 using Nabta.Application.Dtos.Auth;
-using Nabta.Application.Featuers.Services;
-using Nabta.Infrastructure.Data;
+using Nabta.Application.Interfaces.Services;
+using Nabta.Infrastructure.Helpers;
 using Nabta.Infrastructure.identity;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -22,15 +21,17 @@ namespace Nabta.Infrastructure.Implementations
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly JwtOptions _jwtOptions;
         private readonly SignInManager<ApplicationUser> _signInManager;
-        private readonly AppDbContext _context;
+        private readonly IEmailService _emailService;
+        private readonly FrontendOptions _frontendOptions;
 
 
-        public AuthService(UserManager<ApplicationUser> userManager , IOptions<JwtOptions> options, SignInManager<ApplicationUser> signInManager, AppDbContext context)
+        public AuthService(UserManager<ApplicationUser> userManager , IOptions<JwtOptions> options, SignInManager<ApplicationUser> signInManager, IEmailService emailService, IOptions<FrontendOptions> frontendOptions)
         {
             _userManager = userManager;
             _jwtOptions = options.Value;
             _signInManager = signInManager;
-            _context = context;
+            _emailService = emailService;
+            _frontendOptions = frontendOptions.Value;
         }
         
         
@@ -112,9 +113,7 @@ namespace Nabta.Infrastructure.Implementations
             };
 
             // 5. Create user and hash password
-            var result = await _userManager.CreateAsync(
-                newAppUser,
-                dto.Password);
+            var result = await _userManager.CreateAsync(newAppUser, dto.Password);
 
             if (!result.Succeeded)
             {
@@ -139,6 +138,11 @@ namespace Nabta.Infrastructure.Implementations
                 {
                     Message = $"Could not assign role: {errorList}"
                 };
+            }
+
+            if (!string.IsNullOrWhiteSpace(newAppUser.Email))
+            {
+                await SendEmailConfirmationAsync(newAppUser);
             }
 
             // 7. Generate JWT
@@ -283,5 +287,87 @@ namespace Nabta.Infrastructure.Implementations
             };
         }
 
+
+        // By: Abdelrahman Mohammed
+
+
+
+        private async Task SendEmailConfirmationAsync(ApplicationUser user)
+        {
+            var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+
+            var encodedToken = Uri.EscapeDataString(token);
+            var encodedUserId = Uri.EscapeDataString(user.Id);
+
+            var confirmationLink =
+                $"{_frontendOptions.BaseUrl}" +
+                $"{_frontendOptions.ConfirmEmailPath}" +
+                $"?userId={encodedUserId}&token={encodedToken}";
+
+            var subject = "Confirm Your Email";
+
+            var body = $"""
+                <h2>Email Confirmation</h2>
+                <p>Please confirm your email address.</p>
+                <a href="{confirmationLink}">Confirm Email</a>
+                """;
+
+            await _emailService.SendEmailAsync(
+                user.Email!,
+                subject,
+                body);
+        }
+
+        public async Task<bool> ConfirmEmailAsync(string userId, string token)
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+
+            if (user is null)
+                return false;
+
+            var result = await _userManager.ConfirmEmailAsync(user,token);
+            return result.Succeeded;
+
+        }
+
+        public async Task ForgotPasswordAsync(string email)
+        {
+            var user = await _userManager.FindByEmailAsync(email);
+
+            if (user is null || !user.EmailConfirmed)
+                return;
+
+            var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+            var encodedToken = Uri.EscapeDataString(token);
+            var encodedEmail = Uri.EscapeDataString(email);
+
+            var resetLink = $"{_frontendOptions.BaseUrl}?email={encodedEmail}&token={encodedToken}";
+
+            var subject = "Reset Your Password";
+            var body = $"""
+            <h2>Password Reset</h2>
+            <p>We received a request to reset your password.</p>
+            <p>
+                <a href="{resetLink}">
+                    Reset Password
+                </a>
+            </p>
+            <p>If you didn't request this, ignore this email.</p>
+            """;
+
+            await _emailService.SendEmailAsync(email,subject,body);
+
+        }
+
+        public async Task<bool> ResetPasswordAsync(string email, string token, string newPassword)
+        {
+            var user = await _userManager.FindByEmailAsync(email);
+
+            if (user is null)
+                return false;
+
+            var result = await _userManager.ResetPasswordAsync(user,token,newPassword);
+            return result.Succeeded;
+        }
     }
 }

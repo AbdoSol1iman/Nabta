@@ -10,9 +10,10 @@ using Npgsql;
 using Nabta.Infrastructure.Data;
 using Nabta.Infrastructure.identity;
 using System.Text;
-
-using Nabta.Application.Featuers.Services;
 using Nabta.Infrastructure.Implementations;
+using Nabta.Application.Interfaces.Services;
+using Nabta.Infrastructure.implementations;
+using Nabta.Infrastructure.Helpers;
 
 namespace Infrastructure
 {
@@ -30,11 +31,12 @@ namespace Infrastructure
                 options.UseNpgsql(ToNpgsqlConnectionString(databaseUrl)));
 
             // JWT Options
-            services.Configure<JwtOptions>(
-                configuration.GetSection("Jwt"));
+            services.Configure<JwtOptions>(configuration.GetSection("Jwt"));
 
-            services.AddSingleton(sp =>
-                sp.GetRequiredService<IOptions<JwtOptions>>().Value);
+            // Frontend Options
+            services.Configure<FrontendOptions>(configuration.GetSection("Frontend"));
+
+            services.AddSingleton(sp => sp.GetRequiredService<IOptions<JwtOptions>>().Value);
 
             // Identity + EF Core
             services.AddIdentity<ApplicationUser, IdentityRole>()
@@ -74,6 +76,7 @@ namespace Infrastructure
 
             // Application Services
             services.AddScoped<IAuthService, AuthService>();
+            services.AddScoped<IEmailService, EmailService>();
 
             return services;
         }

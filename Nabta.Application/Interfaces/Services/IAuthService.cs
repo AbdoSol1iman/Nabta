@@ -1,5 +1,5 @@
 ﻿using Nabta.Application.Dtos.Auth;
-namespace Nabta.Application.Featuers.Services
+namespace Nabta.Application.Interfaces.Services
 {   public interface IAuthService
     {
         Task<AuthModel> RegisterAsync(RegisterDto dto);
@@ -11,5 +11,13 @@ namespace Nabta.Application.Featuers.Services
         Task<AuthModel> RefreshTokenAsync(string token);
 
         Task<bool> RevokeToken(string token);
+
+        // Email and password actions
+        Task<bool> ConfirmEmailAsync(string userId, string token);
+
+        Task ForgotPasswordAsync(string email);
+
+        Task<bool> ResetPasswordAsync(string email, string token, string newPassword);
+
     }
 }
